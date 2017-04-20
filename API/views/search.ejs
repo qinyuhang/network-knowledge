@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+        <%= title %>
+    </title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <script>
+        function ajax(conf) {
+            // default param
+            var getParam = '',
+                postParam = '',
+                postForm = null;
+            conf.method = conf.method || 'GET';
+
+            var xhr = new XMLHttpRequest();
+
+            // event handler
+            xhr.addEventListener('load', function(e) {
+                conf.success = conf.success || function() {};
+
+                var res = xhr.response;
+
+                switch (conf.dataType) {
+                    case 'json':
+                        res = JSON.parse(res);
+                        break;
+                    case 'text':
+                        break;
+                    default:
+                        break;
+                }
+                conf.success(res);
+                xhr.removeEventListener('load', arguments.callee);
+            }, false);
+
+            xhr.addEventListener('error', function(e) {
+                conf.error = conf.error || function() {};
+                conf.error(e);
+                xhr.removeEventListener('error', arguments.callee);
+            }, false);
+
+            // request data
+            xhr.withCredentials = !!conf.withCredentials;
+
+            if (conf.data) {
+                var count = 0;
+                switch (conf.method.toUpperCase()) {
+                    case 'GET':
+                        getParam += '?';
+                        for (var getkey in conf.data) {
+                            if (conf.data.hasOwnProperty(getkey)) {
+                                if (count++ > 0) {
+                                    getParam += '&';
+                                }
+                                getParam += (getkey + '=' + conf.data[getkey]);
+                            }
+                        }
+                        break;
+                    case 'POST':
+                        for (var postkey in conf.data) {
+                            if (conf.data.hasOwnProperty(postkey)) {
+                                if (count++ > 0) {
+                                    postParam += '&';
+                                }
+                                postParam += (postkey + '=' + conf.data[postkey]);
+                            }
+                        }
+                        break;
+                }
+            }
+
+            // open request
+            xhr.open(
+                conf.method || 'GET',
+                conf.url + getParam,
+                (conf.async === undefined) ? (true) : (conf.async)
+            );
+
+            // set header
+            if (conf.headers) {
+                for (var headerkey in conf.headers) {
+                    if (conf.headers.hasOwnProperty(headerkey)) {
+                        xhr.setRequestHeader(headerkey, conf.headers[headerkey]);
+                    }
+                }
+            }
+
+            // send request
+            if ((conf.method.toUpperCase() === 'POST')) {
+                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+                xhr.send(postParam);
+            } else {
+                xhr.send();
+            }
+        }
+
+        function jsonpSearch(){
+            clearShow();
+            var user_name = document.querySelector("input[name='github_username']").value;
+            if (!user_name){
+                return;
+            }
+            var jsonpScript = document.createElement("script");
+            jsonpScript.src = "https://api.github.com/users/" + user_name + "?callback=showInfo";
+            document.body.appendChild(jsonpScript);
+            return;
+        }
+        
+        function ajaxSearch(){
+            clearShow();
+            var user_name = document.querySelector("input[name='github_username']").value;
+            if (!user_name){
+                return;
+            }
+            ajax({
+                method: "GET",
+                url: "https://api.github.com/users/" + user_name,
+                success: function(res){
+                    if (res){
+//                        console.log(res);
+                        showInfo(JSON.parse(res));
+                    }
+                }
+            })
+        }
+        
+        function ajaxLocalSearch(){
+            clearShow();
+            var user_name = document.querySelector("input[name='github_username']").value;
+            if (!user_name){
+                return;
+            }
+            ajax({
+                method: "POST",
+                url: "/search/api",
+                data: {
+                    github_username: user_name
+                },
+                success: function(res){
+                    if (res){
+                        showInfo(JSON.parse(res));
+                    }
+                }
+            })
+        }
+        
+        function showInfo(data){
+            if (typeof data === "string"){
+                data = JSON.parse(data);
+            }
+            if (data.meta){
+                data = data.data
+            }
+            document.getElementsByClassName("avatar")[0].style.backgroundImage = "url(" + data.avatar_url + ")";
+            document.getElementsByClassName("avatar")[0].style.backgroundSize = "cover";
+            document.querySelector(".name a").innerHTML = data.name;
+            document.querySelector(".login a").innerHTML = data.login;
+            document.querySelector(".email a").innerHTML = data.email;
+            document.querySelector(".followers").innerHTML = document.querySelector(".followers").getAttribute("data-org") + data.followers;
+            document.querySelector(".following").innerHTML = document.querySelector(".following").getAttribute("data-org") + data.following;
+            document.querySelector(".repos").innerHTML = document.querySelector(".repos").getAttribute("data-org") + data.public_repos;
+            document.querySelector(".bio").innerHTML = data.bio;
+        }
+        
+        function clearShow(){
+            document.querySelectorAll("a").forEach( v => {v.innerHTML = ""});
+            document.querySelector(".avatar").style.backgroundImage = "url()";
+            document.querySelectorAll(".data span").forEach( v => {v.innerHTML = ""});
+            document.querySelector(".bio").innerHTML = "";
+        }
+
+    </script>
+    <!--    <script src="/javascripts/index.js"></script>-->
+</head>
+
+<body>
+    <h1>
+        <%= title %>
+    </h1>
+    <div style="margin-bottom: 20px;">
+        <form action="/search" method="post">
+            <input type="text" name="github_username">
+            <button type="submit">刷新提交</button>
+        </form>
+        <button onclick="ajaxSearch()">跨域ajax</button>
+        <button onclick="ajaxLocalSearch()">本域ajax</button>
+        <button onclick="jsonpSearch()">jsonp</button>
+    </div>
+
+    <div>
+        <div class="avatar" style="background-size: cover;background: url();">
+        </div>
+        <div class="info">
+            <div class="name">
+                <a href="">
+
+                </a>
+            </div>
+            <div class="login">
+                <a href="">
+
+                </a>
+            </div>
+            <div class="email">
+                <a href="mailto: ">
+
+                </a>
+            </div>
+            <div class="data">
+                <span class="following" data-org="Following: ">
+                    
+                </span>
+                <span class="followers" data-org="Followed: ">
+                    
+                </span>
+                <span class="repos" data-org="Repos: ">
+                    
+                </span>
+            </div>
+        </div>
+        <div class="bio">
+
+        </div>
+    </div>
+
+</body>
+
+</html>

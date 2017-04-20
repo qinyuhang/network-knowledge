@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+        <%= title %>
+    </title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <!--    <script src="/javascripts/index.js"></script>-->
+</head>
+
+<body>
+    <h1>
+        <%= title %>
+    </h1>
+    <div style="margin-bottom: 20px;">
+        <form action="/" method="post">
+            <input type="text" name="github_username">
+            <button type="submit">提交</button>
+        </form>
+
+    </div>
+    <% if (!!user_info) {%>
+        <div>
+            <div class="avatar" style="background: url(<%= JSON.parse(user_info).avatar_url %>); background-size: cover">
+            </div>
+            <div class="info">
+                <div class="name">
+                    <a href="<%= JSON.parse(user_info).html_url %>">
+                        <%= JSON.parse(user_info).name %>
+                    </a>
+                </div>
+                <div class="login">
+                    <a href="<%= JSON.parse(user_info).html_url %>">
+                        <%= JSON.parse(user_info).login %>
+                    </a>
+                </div>
+                <div class="email">
+                    <a href="mailto: <%= JSON.parse(user_info).email %>">
+                        <%= JSON.parse(user_info).email %>
+                    </a>
+                </div>
+                <div class="data">
+                    <span class="following">
+                        Following: <%= JSON.parse(user_info).following %>
+                    </span>
+                    <span class="followers">
+                        Followed: <%= JSON.parse(user_info).followers %>
+                    </span>
+                    <span class="repos">
+                        Repos: <%= JSON.parse(user_info).public_repos %>
+                    </span>
+                </div>
+            </div>
+            <div class="bio">
+                <%= JSON.parse(user_info).bio%>
+            </div>
+        </div>
+        <%}%>
+</body>
+
+</html>

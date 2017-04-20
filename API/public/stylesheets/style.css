@@ -1,0 +1,44 @@
+body {
+  padding: 50px;
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: #00B7FF;
+  background-color: #ffffff;
+}
+
+.avatar{
+    display: inline-block;
+    width: 100px;
+    height: 100px;
+    vertical-align: top;
+    margin-right: 20px;
+    background-size: cover;
+}
+
+.info{
+    display: inline-block;
+    vertical-align: top;
+    max-width: 500px;
+}
+
+.info .name a{
+    text-decoration: none;
+    color: black;
+    font-size: 26px;
+    line-height: 30px;
+}
+
+.info .login a{
+    text-decoration: none;
+    color: gray;
+    font-size: 20px;
+    line-height: 24px;
+}
+
+.info .email a{
+    text-decoration: none;
+    font-size: 16px;
+    line-height: 20px;
+}
