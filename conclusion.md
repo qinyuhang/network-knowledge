@@ -207,6 +207,110 @@ HTTP状态码`的一些常见数值：
 
 首先，我们要学会看请求是怎么被处理的。也就是说，这个请求究竟是首先被网页服务器处理了，还是直接发送到了后端程序？其次，我们再去看网页服务器和后端程序的日志文件。
 
+一个典型的NGINX配置文件：
+
+```nginx
+#user  nobody;
+worker_processes  1;
+
+error_log   /usr/local/var/log/nginx/nginx_error.log;
+
+events {
+    worker_connections  1024;
+}
+
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+  	access_log  /usr/local/var/log/nginx_http_access.log;
+    error_log   /usr/local/var/log/nginx_http_error.log; # debug;
+    sendfile        on;
+	keepalive_timeout  65;
+
+    gzip  on;
+
+    server {
+        listen       80;
+        server_name  welkin.online;
+
+        charset utf-8;
+
+        access_log  /usr/local/var/log/nginx/welkin.online.access.log; #  main;
+        error_log   /usr/local/var/log/nginx/welkin.online.access.log; #  main;
+
+        location / {
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Nginx-Proxy true;
+		}
+
+        location /login {
+            root   html;
+            index  index.html index.htm;
+        }
+    	error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+  	}
+}
+
+```
+
+我们需要注意的是nginx整体的`error_log`位于`/usr/local/var/log/nginx/nginx_error.log;`，`welkin.online`的`access_log` 位于  `/usr/local/var/log/nginx/welkin.online.access.log`，`error_log`位于`/usr/local/var/log/nginx/welkin.online.access.log`。当我们排查问题的时候就可以按照这样的顺序去排查问题。
+
+#### 服务器返回一个`HTML`文件
+
+从上面的响应来看，服务器返回的仅仅是一个`HTML`文件，那么网站里面的`CSS`和`JS`文件都是什么时候被返回到浏览器的呢？让我们跟随这串`HTML`信息的比特流返回到客户端看看究竟。
+
+#### 浏览器的解析和渲染过程
+
+##### DOM树，样式表对象和渲染树
+
+随着电位变化的传递，我们跟随着HTML文件来到了客户端。浏览器一听到`HTML`文件来了就开始了**HTML解析过程（HTML Parse）**，解析过程生成的产物叫做`DOM树`。在这个过程中，遇到了`link`标签的样式文件，浏览器就会调动一个下载线程去下载和解析这个样式文件（下载和解析CSS文件不会阻塞HTML的解析过程），CSS的解析产物叫做`样式表对象`。而遇到了`script`标签的时候，浏览器却会**停止**HTML解析过程，转而去下载和执行script标签的脚本文件。这又是为什么呢？
+
+```
+如图，JS的加载之所以影响HTML的解析，是因为有DOM API的存在，哪怕HTML都解析完了，在最后的脚本中调用 document.write 方法也会重写页面内容，为了优化这样的情况，浏览器决定在碰到script标签的时候一定要先下载并且执行完脚本才继续HTML的解析过程。而CSS文件的下载，虽然不会影响HTML的解析和JS的下载，却会影响JS的执行。这是因为JS中有一些DOM操作是依赖CSS的，比如使用JS给获取某个DOM元素的宽度，那么首先这个DOM元素得有宽度，而很多时候DOM元素的宽度是从CSS中来的。
+```
+
+在我们的`DOM树`和`样式表对象`都生成之后（再次注意`DOM树`的构建，JS脚本也会参与），由他们两再合并成`渲染树`，浏览器再通过`渲染过程`，把渲染树显示到屏幕上。从流程上来说，只要生成了新的渲染树，就会再次触发`渲染过程`，因此，使用JS来改变某个DOM元素的样式，是会重新生成`样式表对象`和`渲染树`的。
+
+##### 从原理到性能
+
+到`渲染过程`结束，我们大概的走了一遍从将地址输入到浏览器地址栏到最终页面在浏览器中显示出来背后发生的事情。那么我们的开发也是围绕这些展开的。接下来我们讲讲围绕性能，我们有哪些必知的。
+
+###### CDN-内容分发网络
+
+假如我们的样式表，JS脚本都存放在北京的机房中，对于美国的用户来说，他首先需要从这个机房的服务器获取到HTML文件，然后在HTML的解析过程中发现CSS和JS文件，他不得不继续向北京的机房请求这些文件，让我们来算算时间吧：
+
+北京到纽约的直线距离为16000KM，以光纤为例，假设折射率为1.5，那么往返一趟的时间为 16000KM/299 792 458 (m / s) / 1.5 = 35.58ms。以请求为例，一个请求至少需要3次握手，3次握手也就是 35.58*3 = 106.74ms。也就是说每个文件至少需要100ms来加载（这是最好情况！）。假设有3个CSS文件，那么除了加载HTML文件外，浏览器还需要300ms额外时间尝试从北京机房下载静态资源到本地。
+
+那我们如果想要用户得到的响应更快，是不是应该拿出一些方法来？于是就有了 CDN 。CDN 将 CSS 、 JS 这些静态文件（为什么叫做静态文件是因为与可能是后端程序生成的HTML不同的是这些文件在开发的时候就被开发者写出来了）放到用户身边的机房去。
+
+CDN的一些展开：缓存策略和CDN（要开始填HTTP响应头字段那里埋下的坑了，我们再回想一下，在HTTP头字段的时候，我们提到了一个叫做`ETag`的头字段，表明它是对文件的一个标识符，只要标识符不变，就可以用本地的缓存）。那我们来看看 CDN 和缓存的一些联想吧？
+
+从速度上来说缓存比 CDN 更快，哪怕是 CDN 也需要花费3次握手去获取文件，而缓存可以直接从用户的磁盘里面读取文件。那这又能怎么样呢？反正浏览器都花时间去请求远程的资源了（要不然就拿不到`ETag`字段）。但是如果考虑到是一个大的文件，三次往返并不一定能拿到所有的内容，这个时候从缓存拿文件显然更加快。
+
+而针对CDN的一些优化更有意思：比如在打包页面的时候，将所有的第三方库独立打包，将页面逻辑JS也独立打包，这样生成了两个JS文件，然后给库命名为 `lib.{libhash}.js` ，而逻辑文件命名为 `main.js`，并且在HTML中写成 `main.js?v={packTime}`这样能更好的利用CDN和缓存。下面我们来解析一下这两种明明方法的区别。
+
+CDN在收到一个请求的时候，会首先看看自己的机器上有没有这个资源的快照，如果没有就向上游请求该文件。比如 `main.js?v=201705`这个资源，假如CDN只有 `main.js?v=201704` 这个快照，那么他就会认定需要到上游请求一下 `main.js?v=201705`这个资源。这样的话，只要我们改动了 HTML 文件中`main.js`后面的`v=`参数即可强制CDN刷新静态资源文件。而`lib.{libhash}.js`则是为了充分利用缓存而进行的策略。浏览器在收到要请求`lib`文件的时候，会首先看看本地的缓存，如果缓存没有过期，并且名字和URL相同的话，就会使用本地缓存。这样就能减少浏览器对CDN的请求，加快脚本的加载过程。以下是同一个资源在使用缓存和不使用缓存下的速度差：
+
+###### Chrome Dev Tool
+
+我们可以使用 Chrome Dev Tool 的 Network 标签来对页面加载的一些网络情况进行研究分析，并提出改进开发实践的方案。Chrome Dev Tool 的 Network 标签如图。
+
+###### 编码实践
+
+样式表写到前面，让浏览器有时间提前去下载（这并不会阻塞HTML解析，反而会让样式表对象更快的构建出来）
+阻塞DOM树构建的脚本放到页面后面，让DOM树先构建出来然后和提前下好的样式表构成渲染树先显示一部分
+
+##### 参考书籍
+
+[网络是怎样连接的]: http://www.ituring.com.cn/book/1758	"网络是怎样连接的"
+[图解HTTP]: http://www.ituring.com.cn/book/1229	"图解HTTP"
+
 # 网络安全
 
 本章节内容主要是搭建一些关于安全的基本概念，从加密的原理到应用，到实际使用以及一些常见安全问题的认识。还捎带讲解了 ajax 和 jsonp 的基本原理。
