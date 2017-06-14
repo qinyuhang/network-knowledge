@@ -551,4 +551,8 @@ curl "https://api.github.com/users/qinyuhang" \
 curl "https://itunes.apple.com/search?term=replica-web&country=cn&entity=software"
 ```
 
-我们注意到只有百度的请求是使用了 POST 方法，为什么呢？原来，我们在百度的服务器上创建了一个 我们长链接和百度短链接之间的映射关系，那么使用POST方法来表示创建资源，也是可以的。
+我们注意到只有百度的请求是使用了 POST 方法，为什么呢？原来，我们在百度的服务器上创建了一个 我们长链接和百度短链接之间的映射关系，那么使用POST方法来表示创建资源，也是可以的。而余下的则使用了GET方法，因为我们只需要从服务端获取需要的信息，并不需要修改或者创建资源。
+
+
+
+以上～
