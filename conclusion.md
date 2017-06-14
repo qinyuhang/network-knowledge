@@ -511,6 +511,8 @@ XSS攻击叫做**跨站脚本攻击**，一般发生在对于用户输入没有�
 
 本章内容主要讲解了一个实例，来自 UBER 的 API 分析。以及粗略的了解了 百度短网址 iTunes Search GitHub API等一些常见 API 的使用。
 
+![API](https://raw.githubusercontent.com/qinyuhang/network-knowledge/master/imgs/API.jpeg)
+
 从这个API的实际上来说，我们可以看到几个典型的特点：
 
 使用HTTPS来做传输协议，这样就能在很大程度上保证数据的安全性。
@@ -527,3 +529,26 @@ XSS攻击叫做**跨站脚本攻击**，一般发生在对于用户输入没有�
 
 而设计不好的API就会带来问题，比如前文在学习HTTP方法的时候，如果一个API将机密要紧的信息放到URL query中传递，就是不好的。
 
+接下来我们实际体会一下 百度短网址的API：
+
+```shell
+curl -X "POST" "http://dwz.cn/create.php" \
+     -H "Cookie: BAIDUID=4805FE7928FD44BCD1D491D1DE97F304:FG=1" \
+     -H "Content-Type: multipart/form-data; charset=utf-8; boundary=__X_PAW_BOUNDARY__" \
+     -F "url=http://weibo.com/ttarticle/p/show?id=2309404087394109359528#_0"
+```
+
+使用GitHub API查询某用户信息：
+
+```shell
+curl "https://api.github.com/users/qinyuhang" \
+     -H "Cookie: logged_in=no"
+```
+
+使用iTunes API查找 iTunes 商品信息：
+
+```shell
+curl "https://itunes.apple.com/search?term=replica-web&country=cn&entity=software"
+```
+
+我们注意到只有百度的请求是使用了 POST 方法，为什么呢？原来，我们在百度的服务器上创建了一个 我们长链接和百度短链接之间的映射关系，那么使用POST方法来表示创建资源，也是可以的。
