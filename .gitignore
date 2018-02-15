@@ -1,2 +1,6 @@
 .idea
 API/node_modules/
+
+#Mac
+.DS_Store
+
